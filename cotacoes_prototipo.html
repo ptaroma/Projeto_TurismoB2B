@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TurismoB2B | Workspace de Cotacoes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Sora:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./cotacoes_prototipo.css" />
+</head>
+<body>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+  <div class="bg-grid"></div>
+
+  <div class="app-shell">
+    <aside class="side-panel card">
+      <h1>TurismoB2B</h1>
+      <p class="muted">Workspace de cotacoes para testes comerciais</p>
+
+      <div class="status-block">
+        <span class="status-dot"></span>
+        <span>Modo prototipo local</span>
+      </div>
+
+      <div class="checklist">
+        <h2>Fluxo sugerido</h2>
+        <ol>
+          <li>Preencher dados do cliente</li>
+          <li>Definir rota, datas e pax</li>
+          <li>Gerar opcoes de voo simuladas</li>
+          <li>Selecionar a opcao preferida</li>
+          <li>Ajustar custos terrestres</li>
+          <li>Revisar margem e proposta final</li>
+          <li>Salvar cotacao no historico local</li>
+        </ol>
+      </div>
+
+      <div class="actions-sticky">
+        <button id="btnSalvar" class="btn btn-primary" type="button">Salvar cotacao</button>
+        <button id="btnExportar" class="btn btn-secondary" type="button">Exportar JSON</button>
+        <button id="btnLimpar" class="btn btn-ghost" type="button">Limpar tela</button>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar card">
+        <div>
+          <p class="tag">Ambiente de Operacao Comercial</p>
+          <h2>Cotacao Dinamica B2B</h2>
+        </div>
+        <div class="top-actions">
+          <label for="validadeHoras">Validade (h)</label>
+          <input id="validadeHoras" type="number" min="1" max="168" value="24" />
+        </div>
+      </header>
+
+      <section class="grid-two">
+        <article class="card">
+          <h3>Cliente</h3>
+          <div class="form-grid">
+            <label>Empresa
+              <input id="clienteEmpresa" type="text" placeholder="Ex: Orion Viagens" />
+            </label>
+            <label>Consultor responsavel
+              <input id="clienteConsultor" type="text" placeholder="Seu nome" />
+            </label>
+            <label>Contato principal
+              <input id="clienteContato" type="text" placeholder="Nome do comprador" />
+            </label>
+            <label>Email
+              <input id="clienteEmail" type="email" placeholder="contato@empresa.com" />
+            </label>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Viagem</h3>
+          <div class="form-grid compact">
+            <label>Origem
+              <input id="origem" type="text" value="GRU" maxlength="3" />
+            </label>
+            <label>Destino
+              <input id="destino" type="text" value="BSB" maxlength="3" />
+            </label>
+            <label>Data ida
+              <input id="dataIda" type="date" />
+            </label>
+            <label>Data volta
+              <input id="dataVolta" type="date" />
+            </label>
+            <label>Adultos
+              <input id="adultos" type="number" min="1" max="9" value="1" />
+            </label>
+            <label>Cabine
+              <select id="cabine">
+                <option value="economy">Economy</option>
+                <option value="premium_economy">Premium Economy</option>
+                <option value="business">Business</option>
+              </select>
+            </label>
+          </div>
+          <div class="inline-actions">
+            <button id="btnGerarOpcoes" class="btn btn-primary" type="button">Gerar opcoes simuladas</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid-two">
+        <article class="card wide">
+          <div class="title-row">
+            <h3>Opcoes de voo (simulacao)</h3>
+            <button id="btnAplicarSelecionado" class="btn btn-secondary" type="button">Aplicar opcao selecionada</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Companhia</th>
+                  <th>Voo</th>
+                  <th>Conexoes</th>
+                  <th>Duracao</th>
+                  <th>Tarifa (BRL)</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaOpcoes"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Custos do pacote</h3>
+          <div class="form-grid compact">
+            <label>Tarifa aerea selecionada (BRL)
+              <input id="tarifaAerea" type="number" min="0" step="0.01" value="0" />
+            </label>
+            <label>Hotel total (BRL)
+              <input id="hotelTotal" type="number" min="0" step="0.01" value="0" />
+            </label>
+            <label>Carro total (BRL)
+              <input id="carroTotal" type="number" min="0" step="0.01" value="0" />
+            </label>
+            <label>Seguro e extras (BRL)
+              <input id="extrasTotal" type="number" min="0" step="0.01" value="0" />
+            </label>
+            <label>Taxa de servico fixa (BRL)
+              <input id="taxaServico" type="number" min="0" step="0.01" value="80" />
+            </label>
+            <label>Margem comercial (%)
+              <input id="margemPct" type="number" min="0" step="0.1" value="15" />
+            </label>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid-two">
+        <article class="card">
+          <h3>Resumo comercial</h3>
+          <div class="kpi-grid">
+            <div class="kpi">
+              <span>Custo base</span>
+              <strong id="kpiCusto">R$ 0,00</strong>
+            </div>
+            <div class="kpi">
+              <span>Markup</span>
+              <strong id="kpiMarkup">R$ 0,00</strong>
+            </div>
+            <div class="kpi highlight">
+              <span>Valor cliente</span>
+              <strong id="kpiCliente">R$ 0,00</strong>
+            </div>
+            <div class="kpi">
+              <span>Validade</span>
+              <strong id="kpiValidade">--</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Texto da proposta</h3>
+          <textarea id="previewProposta" rows="10" readonly></textarea>
+        </article>
+      </section>
+
+      <section class="card">
+        <h3>Historico local de cotacoes</h3>
+        <p class="muted">Armazenado no navegador via localStorage.</p>
+        <div id="historico" class="historico-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./cotacoes_prototipo.js"></script>
+</body>
+</html>

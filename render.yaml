@@ -1,0 +1,42 @@
+databases:
+  - name: turismob2b-postgres
+    databaseName: turismob2b
+    user: turismob2b
+    plan: starter
+
+services:
+  - type: web
+    name: turismob2b-workspace
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENVIRONMENT
+        value: production
+      - key: ACCESS_TOKEN_MINUTES
+        value: 30
+      - key: REFRESH_TOKEN_DAYS
+        value: 14
+      - key: DB_POOL_SIZE
+        value: 5
+      - key: DB_MAX_OVERFLOW
+        value: 10
+      - key: DB_POOL_RECYCLE
+        value: 1800
+      - key: APP_CORS_ORIGINS
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: turismob2b-postgres
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_BOOTSTRAP_EMAIL
+        sync: false
+      - key: ADMIN_BOOTSTRAP_PASSWORD
+        sync: false
+      - key: ADMIN_BOOTSTRAP_NAME
+        value: Administrador

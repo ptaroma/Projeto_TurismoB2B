@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TurismoB2B Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Sora:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+
+  <div id="authView" class="auth-wrap">
+    <section class="auth-card">
+      <h1>TurismoB2B Workspace</h1>
+      <p>Plataforma de cotações para equipe comercial.</p>
+
+      <div class="tabs">
+        <button id="tabLogin" class="tab active" type="button">Login</button>
+        <button id="tabRegister" class="tab" type="button">Cadastro</button>
+      </div>
+
+      <form id="loginForm" class="form">
+        <label>Email
+          <input id="loginEmail" type="email" required />
+        </label>
+        <label>Senha
+          <input id="loginPassword" type="password" required />
+        </label>
+        <button class="btn btn-primary" type="submit">Entrar</button>
+      </form>
+
+      <form id="registerForm" class="form hidden">
+        <label>Nome
+          <input id="registerName" type="text" required />
+        </label>
+        <label>Email
+          <input id="registerEmail" type="email" required />
+        </label>
+        <label>Senha
+          <input id="registerPassword" type="password" required minlength="6" />
+        </label>
+        <button class="btn btn-primary" type="submit">Criar conta</button>
+      </form>
+
+      <p id="authMsg" class="msg"></p>
+    </section>
+  </div>
+
+  <div id="appView" class="app-wrap hidden">
+    <aside class="side card">
+      <h2>TurismoB2B</h2>
+      <p id="userBox" class="muted"></p>
+      <button id="logoutBtn" class="btn btn-ghost" type="button">Sair</button>
+
+      <div class="side-section">
+        <h3>Fluxo Operacional</h3>
+        <ol>
+          <li>Identificar cliente e demanda</li>
+          <li>Estruturar rota e passageiros</li>
+          <li>Gerar opções de voo</li>
+          <li>Compor pacote completo</li>
+          <li>Salvar e acompanhar cotações</li>
+        </ol>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="card top">
+        <div>
+          <p class="tag">Workspace Comercial</p>
+          <h2>Gerador de Cotações</h2>
+        </div>
+        <div class="inline">
+          <label>Nome da cotação
+            <input id="quoteName" type="text" placeholder="Ex: Orion | GRU-BSB | Out/2026" />
+          </label>
+          <button id="saveQuoteBtn" class="btn btn-primary" type="button">Salvar Cotação</button>
+        </div>
+      </header>
+
+      <section class="grid-two">
+        <article class="card">
+          <h3>Cliente</h3>
+          <div class="form-grid">
+            <label>Empresa<input id="clientCompany" type="text" /></label>
+            <label>Contato<input id="clientContact" type="text" /></label>
+            <label>Email<input id="clientEmail" type="email" /></label>
+            <label>Consultor<input id="consultantName" type="text" /></label>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Viagem</h3>
+          <div class="form-grid compact">
+            <label>Origem<input id="origin" type="text" value="GRU" maxlength="3" /></label>
+            <label>Destino<input id="destination" type="text" value="BSB" maxlength="3" /></label>
+            <label>Data ida<input id="departureDate" type="date" /></label>
+            <label>Data volta<input id="returnDate" type="date" /></label>
+            <label>Adultos<input id="adults" type="number" value="1" min="1" max="9" /></label>
+            <label>Cabine
+              <select id="cabin">
+                <option value="economy">Economy</option>
+                <option value="premium_economy">Premium Economy</option>
+                <option value="business">Business</option>
+              </select>
+            </label>
+          </div>
+          <div class="actions-row">
+            <button id="simulateBtn" class="btn btn-secondary" type="button">Gerar Opções</button>
+            <button id="applySelectedBtn" class="btn btn-secondary" type="button">Aplicar Selecionada</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid-two">
+        <article class="card">
+          <h3>Opções de voo</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Cia</th>
+                  <th>Voo</th>
+                  <th>Conexões</th>
+                  <th>Duração</th>
+                  <th>Tarifa</th>
+                </tr>
+              </thead>
+              <tbody id="flightTable"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Custos e Margem</h3>
+          <div class="form-grid compact">
+            <label>Aéreo (BRL)<input id="airfareTotal" type="number" step="0.01" value="0" /></label>
+            <label>Hotel (BRL)<input id="hotelTotal" type="number" step="0.01" value="0" /></label>
+            <label>Carro (BRL)<input id="carTotal" type="number" step="0.01" value="0" /></label>
+            <label>Extras (BRL)<input id="extrasTotal" type="number" step="0.01" value="0" /></label>
+            <label>Taxa serviço (BRL)<input id="serviceFee" type="number" step="0.01" value="80" /></label>
+            <label>Margem (%)<input id="marginPct" type="number" step="0.1" value="15" /></label>
+            <label>Validade (h)<input id="validityHours" type="number" min="1" max="168" value="24" /></label>
+          </div>
+          <label>Observações
+            <textarea id="notes" rows="3" placeholder="Condições comerciais, políticas, etc."></textarea>
+          </label>
+        </article>
+      </section>
+
+      <section class="grid-two">
+        <article class="card">
+          <h3>Resumo Financeiro</h3>
+          <div class="kpi-grid">
+            <div class="kpi"><span>Custo base</span><strong id="kpiBase">R$ 0,00</strong></div>
+            <div class="kpi"><span>Margem (R$)</span><strong id="kpiMargin">R$ 0,00</strong></div>
+            <div class="kpi highlight"><span>Valor cliente</span><strong id="kpiTotal">R$ 0,00</strong></div>
+            <div class="kpi"><span>Validade</span><strong id="kpiValidity">--</strong></div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Prévia</h3>
+          <textarea id="proposalText" rows="9" readonly></textarea>
+        </article>
+      </section>
+
+      <section class="card">
+        <h3>Minhas Cotações Salvas</h3>
+        <div id="quotesList" class="quotes-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
