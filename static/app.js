@@ -9,6 +9,10 @@ const state = {
   user: null,
   flights: [],
   selectedFlightId: null,
+  hotels: [],
+  selectedHotelId: null,
+  cars: [],
+  selectedCarId: null,
   quotes: [],
 };
 
@@ -217,6 +221,160 @@ function applySelectedFlight() {
     return;
   }
   $("airfareTotal").value = item.preco;
+  updateSummary();
+}
+
+function getTripNights() {
+  const departure = $("departureDate").value;
+  const ret = $("returnDate").value;
+  if (!departure || !ret) return 1;
+
+  const d1 = new Date(`${departure}T12:00:00`);
+  const d2 = new Date(`${ret}T12:00:00`);
+  const diffMs = d2.getTime() - d1.getTime();
+  const nights = Math.ceil(diffMs / 86400000);
+  return Math.max(1, nights);
+}
+
+function renderHotels() {
+  const tbody = $("hotelTable");
+  tbody.innerHTML = "";
+
+  if (!state.hotels.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = '<td colspan="6">Sem opções. Clique em "Gerar Opções".</td>';
+    tbody.appendChild(tr);
+    return;
+  }
+
+  state.hotels.forEach((h) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><input type="radio" name="hotelOpt" value="${h.id}" ${
+      state.selectedHotelId === h.id ? "checked" : ""
+    }></td>
+      <td>${h.hotel}</td>
+      <td>${h.diarias}</td>
+      <td>${h.regime}</td>
+      <td>${h.categoria}</td>
+      <td>${fmtBRL(h.preco)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('input[name="hotelOpt"]').forEach((r) => {
+    r.addEventListener("change", () => {
+      state.selectedHotelId = r.value;
+    });
+  });
+}
+
+function simulateHotels() {
+  const destination = $("destination").value.trim().toUpperCase() || "BSB";
+  const adults = Number($("adults").value || 1);
+  const nights = getTripNights();
+
+  const destinationFactor = destination.charCodeAt(0) % 5;
+  const baseDaily = 220 + adults * 45 + destinationFactor * 20;
+  const templates = [
+    { hotel: "Urban Stay", categoria: "3*", regime: "Sem cafe", factor: 1.0 },
+    { hotel: "Prime Comfort", categoria: "4*", regime: "Cafe incluso", factor: 1.28 },
+    { hotel: "Signature Suites", categoria: "5*", regime: "Meia pensao", factor: 1.65 },
+    { hotel: "Business Hub", categoria: "4*", regime: "Cafe incluso", factor: 1.18 },
+    { hotel: "Boutique Select", categoria: "4*", regime: "Sem cafe", factor: 1.1 },
+  ];
+
+  state.hotels = templates.map((t, i) => ({
+    id: `hotel_${i + 1}`,
+    hotel: t.hotel,
+    categoria: t.categoria,
+    regime: t.regime,
+    diarias: nights,
+    preco: Number((baseDaily * nights * t.factor).toFixed(2)),
+  }));
+  state.hotels.sort((a, b) => a.preco - b.preco);
+  state.selectedHotelId = state.hotels[0]?.id || null;
+  renderHotels();
+}
+
+function applySelectedHotel() {
+  const item = state.hotels.find((h) => h.id === state.selectedHotelId);
+  if (!item) {
+    alert("Selecione uma opção de hospedagem primeiro.");
+    return;
+  }
+  $("hotelTotal").value = item.preco;
+  updateSummary();
+}
+
+function renderCars() {
+  const tbody = $("carTable");
+  tbody.innerHTML = "";
+
+  if (!state.cars.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = '<td colspan="6">Sem opções. Clique em "Gerar Opções".</td>';
+    tbody.appendChild(tr);
+    return;
+  }
+
+  state.cars.forEach((c) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><input type="radio" name="carOpt" value="${c.id}" ${
+      state.selectedCarId === c.id ? "checked" : ""
+    }></td>
+      <td>${c.locadora}</td>
+      <td>${c.modelo}</td>
+      <td>${c.categoria}</td>
+      <td>${c.diarias}</td>
+      <td>${fmtBRL(c.preco)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('input[name="carOpt"]').forEach((r) => {
+    r.addEventListener("change", () => {
+      state.selectedCarId = r.value;
+    });
+  });
+}
+
+function simulateCars() {
+  const adults = Number($("adults").value || 1);
+  const nights = getTripNights();
+  const destination = $("destination").value.trim().toUpperCase() || "BSB";
+  const destinationFactor = destination.charCodeAt(1) % 4;
+  const baseDaily = 95 + adults * 18 + destinationFactor * 12;
+
+  const templates = [
+    { locadora: "Localiza", modelo: "Onix", categoria: "Economico", factor: 1.0 },
+    { locadora: "Movida", modelo: "HB20", categoria: "Compacto", factor: 1.12 },
+    { locadora: "Unidas", modelo: "Corolla", categoria: "Sedan", factor: 1.54 },
+    { locadora: "Foco", modelo: "Renegade", categoria: "SUV", factor: 1.72 },
+    { locadora: "Enterprise", modelo: "Compass", categoria: "SUV Premium", factor: 1.96 },
+  ];
+
+  state.cars = templates.map((t, i) => ({
+    id: `car_${i + 1}`,
+    locadora: t.locadora,
+    modelo: t.modelo,
+    categoria: t.categoria,
+    diarias: nights,
+    preco: Number((baseDaily * nights * t.factor).toFixed(2)),
+  }));
+  state.cars.sort((a, b) => a.preco - b.preco);
+  state.selectedCarId = state.cars[0]?.id || null;
+  renderCars();
+}
+
+function applySelectedCar() {
+  const item = state.cars.find((c) => c.id === state.selectedCarId);
+  if (!item) {
+    alert("Selecione uma opção de carro primeiro.");
+    return;
+  }
+  $("carTotal").value = item.preco;
   updateSummary();
 }
 
@@ -439,7 +597,7 @@ function bindApp() {
     $(id).addEventListener("input", updateSummary);
   });
 
-  $("simulateBtn").addEventListener("click", async () => {
+  $("simulateFlightBtn").addEventListener("click", async () => {
     try {
       await simulateFlights();
     } catch (err) {
@@ -447,7 +605,11 @@ function bindApp() {
     }
   });
 
-  $("applySelectedBtn").addEventListener("click", applySelectedFlight);
+  $("applyFlightBtn").addEventListener("click", applySelectedFlight);
+  $("simulateHotelBtn").addEventListener("click", simulateHotels);
+  $("applyHotelBtn").addEventListener("click", applySelectedHotel);
+  $("simulateCarBtn").addEventListener("click", simulateCars);
+  $("applyCarBtn").addEventListener("click", applySelectedCar);
   $("saveQuoteBtn").addEventListener("click", async () => {
     try {
       await saveQuote();
@@ -462,6 +624,9 @@ function bindApp() {
 async function init() {
   bindAuth();
   bindApp();
+  renderFlights();
+  renderHotels();
+  renderCars();
 
   const base = todayISO();
   $("departureDate").value = addDays(base, 14);
