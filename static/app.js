@@ -231,12 +231,7 @@ async function loadAirportSuggestions(fieldId) {
   const input = $(fieldId);
   const query = input.value.trim();
 
-  if (query.length < 2) {
-    closeAirportSuggest(fieldId);
-    return;
-  }
-
-  const results = await api(`/api/airports/search?q=${encodeURIComponent(query)}&limit=8`, {
+  const results = await api(`/api/airports/search?q=${encodeURIComponent(query)}&limit=30`, {
     auth: true,
   });
   renderAirportSuggestions(fieldId, Array.isArray(results) ? results : []);
@@ -263,7 +258,6 @@ function bindAirportAutocomplete(fieldId) {
   });
 
   input.addEventListener("focus", async () => {
-    if (input.value.trim().length < 2) return;
     try {
       await loadAirportSuggestions(fieldId);
     } catch {
@@ -425,6 +419,16 @@ function simulateHotels() {
     { hotel: "Signature Suites", categoria: "5*", regime: "Meia pensao", factor: 1.65 },
     { hotel: "Business Hub", categoria: "4*", regime: "Cafe incluso", factor: 1.18 },
     { hotel: "Boutique Select", categoria: "4*", regime: "Sem cafe", factor: 1.1 },
+    { hotel: "Atlantico Palace", categoria: "5*", regime: "Cafe incluso", factor: 1.58 },
+    { hotel: "Avenida Executive", categoria: "3*", regime: "Sem cafe", factor: 0.96 },
+    { hotel: "Centro Smart Hotel", categoria: "3*", regime: "Cafe incluso", factor: 1.04 },
+    { hotel: "Vila Prime", categoria: "4*", regime: "Meia pensao", factor: 1.34 },
+    { hotel: "Harbor Grand", categoria: "5*", regime: "Pensao completa", factor: 1.84 },
+    { hotel: "Garden Inn Select", categoria: "4*", regime: "Cafe incluso", factor: 1.22 },
+    { hotel: "Airport Connect", categoria: "3*", regime: "Sem cafe", factor: 0.92 },
+    { hotel: "Corporate Suites", categoria: "4*", regime: "Cafe incluso", factor: 1.26 },
+    { hotel: "Beachline Resort", categoria: "5*", regime: "Meia pensao", factor: 1.74 },
+    { hotel: "Metro Comfort", categoria: "3*", regime: "Cafe incluso", factor: 1.02 },
   ];
 
   state.hotels = templates.map((t, i) => ({
@@ -496,6 +500,13 @@ function simulateCars() {
     { locadora: "Unidas", modelo: "Corolla", categoria: "Sedan", factor: 1.54 },
     { locadora: "Foco", modelo: "Renegade", categoria: "SUV", factor: 1.72 },
     { locadora: "Enterprise", modelo: "Compass", categoria: "SUV Premium", factor: 1.96 },
+    { locadora: "Alamo", modelo: "Kwid", categoria: "Economico", factor: 0.94 },
+    { locadora: "National", modelo: "Virtus", categoria: "Sedan", factor: 1.42 },
+    { locadora: "Hertz", modelo: "T-Cross", categoria: "SUV", factor: 1.66 },
+    { locadora: "Avis", modelo: "Tracker", categoria: "SUV", factor: 1.7 },
+    { locadora: "Budget", modelo: "Argo", categoria: "Compacto", factor: 1.08 },
+    { locadora: "Sixt", modelo: "Corolla Cross", categoria: "SUV Premium", factor: 1.9 },
+    { locadora: "Rentcars Partner", modelo: "Spin", categoria: "Minivan", factor: 1.63 },
   ];
 
   state.cars = templates.map((t, i) => ({

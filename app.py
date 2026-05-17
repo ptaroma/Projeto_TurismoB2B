@@ -17,6 +17,11 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Text, create_engine, text
 from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 
+try:
+    import airportsdata
+except Exception:  # pragma: no cover - fallback quando pacote nao estiver disponivel
+    airportsdata = None
+
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 
@@ -182,7 +187,25 @@ class UpdateQuoteStatusRequest(BaseModel):
 
 auth_attempts: dict[str, deque[datetime]] = defaultdict(deque)
 
-AIRPORTS_BR: list[dict[str, Any]] = [
+PRIMARY_AIRPORTS = {
+    "GRU",
+    "CGH",
+    "VCP",
+    "GIG",
+    "SDU",
+    "BSB",
+    "CNF",
+    "POA",
+    "FLN",
+    "CWB",
+    "SSA",
+    "REC",
+    "FOR",
+    "BEL",
+    "MAO",
+}
+
+AIRPORTS_BR_SEED: list[dict[str, Any]] = [
     {
         "iata": "GRU",
         "city": "Sao Paulo",
@@ -408,6 +431,73 @@ def normalize_text(value: str) -> str:
     text_value = unicodedata.normalize("NFKD", value)
     text_value = "".join(ch for ch in text_value if not unicodedata.combining(ch))
     return " ".join(text_value.lower().strip().split())
+
+
+def build_airports_catalog() -> list[dict[str, Any]]:
+    catalog: dict[str, dict[str, Any]] = {}
+
+    for airport in AIRPORTS_BR_SEED:
+        iata = str(airport.get("iata", "")).upper().strip()
+        if len(iata) != 3:
+            continue
+        catalog[iata] = {
+            "iata": iata,
+            "city": str(airport.get("city", "")).strip() or iata,
+            "state": str(airport.get("state", "")).strip(),
+            "name": str(airport.get("name", f"Aeroporto {iata}")).strip(),
+            "is_primary": bool(airport.get("is_primary", False) or iata in PRIMARY_AIRPORTS),
+            "keywords": [str(k).strip() for k in airport.get("keywords", []) if str(k).strip()],
+        }
+
+    if airportsdata is not None:
+        try:
+            all_airports = airportsdata.load("IATA")
+            for code, row in all_airports.items():
+                country = str(row.get("country", "")).upper().strip()
+                if country != "BR":
+                    continue
+
+                iata = str(row.get("iata") or code or "").upper().strip()
+                if len(iata) != 3 or iata == "\\N":
+                    continue
+
+                city = str(row.get("city") or "").strip() or iata
+                state = str(row.get("subd") or "").strip()
+                name = str(row.get("name") or f"Aeroporto {iata}").strip()
+
+                keywords = [city, name]
+                if state:
+                    keywords.append(state)
+
+                entry = {
+                    "iata": iata,
+                    "city": city,
+                    "state": state,
+                    "name": name,
+                    "is_primary": iata in PRIMARY_AIRPORTS,
+                    "keywords": [normalize_text(k) for k in keywords if k],
+                }
+
+                if iata in catalog:
+                    existing = catalog[iata]
+                    existing["is_primary"] = bool(existing.get("is_primary") or entry["is_primary"])
+                    if not existing.get("state") and entry.get("state"):
+                        existing["state"] = entry["state"]
+                    if len(existing.get("name", "")) < len(entry.get("name", "")):
+                        existing["name"] = entry["name"]
+                    if len(existing.get("city", "")) < len(entry.get("city", "")):
+                        existing["city"] = entry["city"]
+                    merged = {normalize_text(k) for k in existing.get("keywords", []) + entry.get("keywords", []) if k}
+                    existing["keywords"] = sorted(merged)
+                else:
+                    catalog[iata] = entry
+        except Exception:
+            pass
+
+    return sorted(catalog.values(), key=lambda a: (normalize_text(a["city"]), a["iata"]))
+
+
+AIRPORTS_BR = build_airports_catalog()
 
 
 def airport_score(airport: dict[str, Any], query: str) -> int:
@@ -686,15 +776,34 @@ def health(db: Session = Depends(get_db)) -> dict[str, str]:
 
 @app.get("/api/airports/search")
 def search_airports(
-    q: str = Query(min_length=1, max_length=80),
-    limit: int = Query(default=8),
+    q: str = Query(default="", max_length=80),
+    limit: int = Query(default=30),
+    offset: int = Query(default=0),
     _: dict[str, Any] = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
-    safe_limit = max(1, min(limit, 20))
+    safe_limit = max(1, min(limit, 100))
+    safe_offset = max(0, min(offset, 5000))
+    query = q.strip()
+
+    if not query:
+        rows = AIRPORTS_BR[safe_offset : safe_offset + safe_limit]
+        return [
+            {
+                "iata": a["iata"],
+                "city": a["city"],
+                "state": a["state"],
+                "name": a["name"],
+                "is_primary": a["is_primary"],
+                "label": f"{a['city']} ({a['iata']}) - {a['name']}",
+                "score": 0,
+            }
+            for a in rows
+        ]
+
     scored: list[tuple[int, dict[str, Any]]] = []
 
     for airport in AIRPORTS_BR:
-        score = airport_score(airport, q)
+        score = airport_score(airport, query)
         if score > 0:
             scored.append((score, airport))
 
@@ -710,7 +819,7 @@ def search_airports(
             "label": f"{a['city']} ({a['iata']}) - {a['name']}",
             "score": score,
         }
-        for score, a in scored[:safe_limit]
+        for score, a in scored[safe_offset : safe_offset + safe_limit]
     ]
 
 
