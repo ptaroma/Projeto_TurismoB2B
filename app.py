@@ -2,13 +2,14 @@ import hashlib
 import json
 import os
 import secrets
+import unicodedata
 from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import jwt
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -181,6 +182,217 @@ class UpdateQuoteStatusRequest(BaseModel):
 
 auth_attempts: dict[str, deque[datetime]] = defaultdict(deque)
 
+AIRPORTS_BR: list[dict[str, Any]] = [
+    {
+        "iata": "GRU",
+        "city": "Sao Paulo",
+        "state": "SP",
+        "name": "Aeroporto Internacional de Guarulhos",
+        "is_primary": True,
+        "keywords": ["guarulhos", "cumbica", "sao paulo"],
+    },
+    {
+        "iata": "CGH",
+        "city": "Sao Paulo",
+        "state": "SP",
+        "name": "Aeroporto de Congonhas",
+        "is_primary": False,
+        "keywords": ["congonhas", "sao paulo"],
+    },
+    {
+        "iata": "VCP",
+        "city": "Campinas",
+        "state": "SP",
+        "name": "Aeroporto de Viracopos",
+        "is_primary": True,
+        "keywords": ["viracopos", "campinas", "sao paulo"],
+    },
+    {
+        "iata": "SDU",
+        "city": "Rio de Janeiro",
+        "state": "RJ",
+        "name": "Aeroporto Santos Dumont",
+        "is_primary": False,
+        "keywords": ["santos dumont", "rio"],
+    },
+    {
+        "iata": "GIG",
+        "city": "Rio de Janeiro",
+        "state": "RJ",
+        "name": "Aeroporto Internacional Galeao",
+        "is_primary": True,
+        "keywords": ["galeao", "rio", "tom jobim"],
+    },
+    {
+        "iata": "BSB",
+        "city": "Brasilia",
+        "state": "DF",
+        "name": "Aeroporto Internacional de Brasilia",
+        "is_primary": True,
+        "keywords": ["brasilia", "jks"],
+    },
+    {
+        "iata": "CNF",
+        "city": "Belo Horizonte",
+        "state": "MG",
+        "name": "Aeroporto Internacional de Confins",
+        "is_primary": True,
+        "keywords": ["confins", "belo horizonte", "tancredo neves"],
+    },
+    {
+        "iata": "PLU",
+        "city": "Belo Horizonte",
+        "state": "MG",
+        "name": "Aeroporto da Pampulha",
+        "is_primary": False,
+        "keywords": ["pampulha", "belo horizonte"],
+    },
+    {
+        "iata": "POA",
+        "city": "Porto Alegre",
+        "state": "RS",
+        "name": "Aeroporto Salgado Filho",
+        "is_primary": True,
+        "keywords": ["porto alegre", "salgado filho"],
+    },
+    {
+        "iata": "FLN",
+        "city": "Florianopolis",
+        "state": "SC",
+        "name": "Aeroporto Hercilio Luz",
+        "is_primary": True,
+        "keywords": ["florianopolis", "hercilio luz"],
+    },
+    {
+        "iata": "CWB",
+        "city": "Curitiba",
+        "state": "PR",
+        "name": "Aeroporto Afonso Pena",
+        "is_primary": True,
+        "keywords": ["curitiba", "afonso pena", "sao jose dos pinhais"],
+    },
+    {
+        "iata": "SSA",
+        "city": "Salvador",
+        "state": "BA",
+        "name": "Aeroporto Internacional de Salvador",
+        "is_primary": True,
+        "keywords": ["salvador", "deputado luis eduardo magalhaes"],
+    },
+    {
+        "iata": "REC",
+        "city": "Recife",
+        "state": "PE",
+        "name": "Aeroporto Internacional do Recife",
+        "is_primary": True,
+        "keywords": ["recife", "guararapes"],
+    },
+    {
+        "iata": "FOR",
+        "city": "Fortaleza",
+        "state": "CE",
+        "name": "Aeroporto Internacional de Fortaleza",
+        "is_primary": True,
+        "keywords": ["fortaleza", "pinto martins"],
+    },
+    {
+        "iata": "NAT",
+        "city": "Natal",
+        "state": "RN",
+        "name": "Aeroporto Internacional de Natal",
+        "is_primary": True,
+        "keywords": ["natal", "sao goncalo do amarante"],
+    },
+    {
+        "iata": "JPA",
+        "city": "Joao Pessoa",
+        "state": "PB",
+        "name": "Aeroporto Presidente Castro Pinto",
+        "is_primary": True,
+        "keywords": ["joao pessoa", "castro pinto"],
+    },
+    {
+        "iata": "MCZ",
+        "city": "Maceio",
+        "state": "AL",
+        "name": "Aeroporto Internacional de Maceio",
+        "is_primary": True,
+        "keywords": ["maceio", "zumbi dos palmares"],
+    },
+    {
+        "iata": "AJU",
+        "city": "Aracaju",
+        "state": "SE",
+        "name": "Aeroporto de Aracaju",
+        "is_primary": True,
+        "keywords": ["aracaju", "santa maria"],
+    },
+    {
+        "iata": "BEL",
+        "city": "Belem",
+        "state": "PA",
+        "name": "Aeroporto Internacional de Belem",
+        "is_primary": True,
+        "keywords": ["belem", "val de cans"],
+    },
+    {
+        "iata": "MAO",
+        "city": "Manaus",
+        "state": "AM",
+        "name": "Aeroporto Internacional Eduardo Gomes",
+        "is_primary": True,
+        "keywords": ["manaus", "eduardo gomes"],
+    },
+    {
+        "iata": "CGB",
+        "city": "Cuiaba",
+        "state": "MT",
+        "name": "Aeroporto Marechal Rondon",
+        "is_primary": True,
+        "keywords": ["cuiaba", "marechal rondon", "varzea grande"],
+    },
+    {
+        "iata": "GYN",
+        "city": "Goiania",
+        "state": "GO",
+        "name": "Aeroporto Santa Genoveva",
+        "is_primary": True,
+        "keywords": ["goiania", "santa genoveva"],
+    },
+    {
+        "iata": "VIX",
+        "city": "Vitoria",
+        "state": "ES",
+        "name": "Aeroporto Eurico de Aguiar Salles",
+        "is_primary": True,
+        "keywords": ["vitoria", "eurico salles"],
+    },
+    {
+        "iata": "IGU",
+        "city": "Foz do Iguacu",
+        "state": "PR",
+        "name": "Aeroporto Internacional de Foz do Iguacu",
+        "is_primary": True,
+        "keywords": ["foz", "iguacu", "cataratas"],
+    },
+    {
+        "iata": "SLZ",
+        "city": "Sao Luis",
+        "state": "MA",
+        "name": "Aeroporto Internacional Marechal Cunha Machado",
+        "is_primary": True,
+        "keywords": ["sao luis", "cunha machado"],
+    },
+    {
+        "iata": "THE",
+        "city": "Teresina",
+        "state": "PI",
+        "name": "Aeroporto Senador Petronio Portella",
+        "is_primary": True,
+        "keywords": ["teresina", "petronio portella"],
+    },
+]
+
 
 def get_db():
     db = SessionLocal()
@@ -188,6 +400,55 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def normalize_text(value: str) -> str:
+    if not value:
+        return ""
+    text_value = unicodedata.normalize("NFKD", value)
+    text_value = "".join(ch for ch in text_value if not unicodedata.combining(ch))
+    return " ".join(text_value.lower().strip().split())
+
+
+def airport_score(airport: dict[str, Any], query: str) -> int:
+    query_norm = normalize_text(query)
+    if not query_norm:
+        return 0
+
+    iata = str(airport["iata"])
+    city = str(airport["city"])
+    name = str(airport["name"])
+    state = str(airport["state"])
+    keywords = " ".join(str(k) for k in airport.get("keywords", []))
+
+    iata_norm = normalize_text(iata)
+    city_norm = normalize_text(city)
+    name_norm = normalize_text(name)
+    state_norm = normalize_text(state)
+    all_norm = " ".join([iata_norm, city_norm, name_norm, state_norm, normalize_text(keywords)])
+
+    score = 0
+    if query_norm == iata_norm:
+        score += 300
+    if query_norm in city_norm:
+        score += 180
+    if city_norm.startswith(query_norm):
+        score += 60
+    if query_norm in name_norm:
+        score += 120
+    if query_norm in state_norm:
+        score += 20
+    if query_norm in all_norm:
+        score += 30
+
+    for token in query_norm.split(" "):
+        if token and token in all_norm:
+            score += 14
+
+    if airport.get("is_primary"):
+        score += 10
+
+    return score
 
 
 def security_headers(response: Response) -> None:
@@ -421,6 +682,36 @@ def home() -> FileResponse:
 def health(db: Session = Depends(get_db)) -> dict[str, str]:
     db.execute(text("SELECT 1"))
     return {"status": "ok"}
+
+
+@app.get("/api/airports/search")
+def search_airports(
+    q: str = Query(min_length=1, max_length=80),
+    limit: int = Query(default=8),
+    _: dict[str, Any] = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    safe_limit = max(1, min(limit, 20))
+    scored: list[tuple[int, dict[str, Any]]] = []
+
+    for airport in AIRPORTS_BR:
+        score = airport_score(airport, q)
+        if score > 0:
+            scored.append((score, airport))
+
+    scored.sort(key=lambda item: (-item[0], item[1]["city"], item[1]["iata"]))
+
+    return [
+        {
+            "iata": a["iata"],
+            "city": a["city"],
+            "state": a["state"],
+            "name": a["name"],
+            "is_primary": a["is_primary"],
+            "label": f"{a['city']} ({a['iata']}) - {a['name']}",
+            "score": score,
+        }
+        for score, a in scored[:safe_limit]
+    ]
 
 
 @app.post("/api/auth/register")

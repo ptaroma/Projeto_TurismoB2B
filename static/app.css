@@ -103,6 +103,7 @@ label {
   gap: 6px;
   color: var(--muted);
   font-size: 0.84rem;
+  position: relative;
 }
 
 input, select, textarea, button {
@@ -192,6 +193,50 @@ thead th { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase
 .kpi.highlight { border-color: #fdba74; background: linear-gradient(135deg, #ffedd5, #fff8ef); }
 
 textarea { width: 100%; }
+
+.autocomplete-box {
+  border: 1px solid #c9d5df;
+  border-radius: 10px;
+  background: #ffffff;
+  max-height: 220px;
+  overflow: auto;
+  box-shadow: 0 14px 28px rgba(20, 33, 43, 0.12);
+}
+
+.autocomplete-item {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 9px 10px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.autocomplete-item:last-child {
+  border-bottom: 0;
+}
+
+.autocomplete-item:hover {
+  background: #eff6ff;
+}
+
+.autocomplete-item strong {
+  display: block;
+  font-size: 0.88rem;
+}
+
+.autocomplete-item small {
+  color: #566779;
+  font-size: 0.78rem;
+}
+
+.input-meta {
+  color: #3f5569;
+  font-size: 0.76rem;
+  min-height: 16px;
+}
 
 .quotes-list { display: grid; gap: 8px; }
 .quote-item {

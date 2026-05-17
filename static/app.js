@@ -16,6 +16,11 @@ const state = {
   quotes: [],
 };
 
+const airportAutocompleteTimers = {
+  origin: null,
+  destination: null,
+};
+
 async function refreshAccessToken() {
   if (!state.refreshToken) return false;
   try {
@@ -121,8 +126,8 @@ function collectQuotePayload() {
     client_contact: $("clientContact").value.trim(),
     client_email: $("clientEmail").value.trim(),
     consultant_name: $("consultantName").value.trim(),
-    origin: $("origin").value.trim().toUpperCase(),
-    destination: $("destination").value.trim().toUpperCase(),
+    origin: resolveAirportCode("origin") || $("origin").value.trim().toUpperCase(),
+    destination: resolveAirportCode("destination") || $("destination").value.trim().toUpperCase(),
     departure_date: $("departureDate").value,
     return_date: $("returnDate").value,
     adults: Number($("adults").value || 1),
@@ -139,6 +144,136 @@ function collectQuotePayload() {
     validity_hours: Number($("validityHours").value || 24),
     notes: $("notes").value.trim(),
   };
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function resolveAirportCode(fieldId) {
+  const input = $(fieldId);
+  const selected = (input.dataset.iata || "").trim().toUpperCase();
+  if (/^[A-Z]{3}$/.test(selected)) return selected;
+
+  const value = input.value.trim();
+  if (/^[A-Za-z]{3}$/.test(value)) return value.toUpperCase();
+
+  const match = value.match(/\(([A-Za-z]{3})\)\s*$/);
+  if (match) return match[1].toUpperCase();
+
+  return "";
+}
+
+function setAirportMeta(fieldId, message) {
+  const metaId = `${fieldId}Meta`;
+  const node = $(metaId);
+  if (node) node.textContent = message;
+}
+
+function closeAirportSuggest(fieldId) {
+  const box = $(`${fieldId}Suggest`);
+  if (!box) return;
+  box.innerHTML = "";
+  box.classList.add("hidden");
+}
+
+function applyAirportSelection(fieldId, airport) {
+  const input = $(fieldId);
+  input.value = `${airport.city} (${airport.iata})`;
+  input.dataset.iata = airport.iata;
+  input.dataset.city = airport.city;
+
+  const primaryTag = airport.is_primary ? "Principal" : "Alternativo";
+  setAirportMeta(fieldId, `${airport.name} - ${airport.state} | ${primaryTag}.`);
+  closeAirportSuggest(fieldId);
+  updateSummary();
+}
+
+function renderAirportSuggestions(fieldId, items) {
+  const box = $(`${fieldId}Suggest`);
+  if (!box) return;
+
+  if (!items.length) {
+    box.innerHTML = '<div class="autocomplete-item"><small>Nenhum aeroporto encontrado.</small></div>';
+    box.classList.remove("hidden");
+    return;
+  }
+
+  box.innerHTML = items
+    .map((airport) => {
+      const badge = airport.is_primary ? "Principal" : "Alternativo";
+      return `
+        <button class="autocomplete-item" type="button" data-airport="${escapeHtml(JSON.stringify(airport))}">
+          <strong>${escapeHtml(airport.city)} (${escapeHtml(airport.iata)})</strong>
+          <small>${escapeHtml(airport.name)} - ${escapeHtml(airport.state)} | ${badge}</small>
+        </button>
+      `;
+    })
+    .join("");
+
+  box.querySelectorAll("[data-airport]").forEach((btn) => {
+    btn.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      const airport = JSON.parse(btn.getAttribute("data-airport"));
+      applyAirportSelection(fieldId, airport);
+    });
+  });
+
+  box.classList.remove("hidden");
+}
+
+async function loadAirportSuggestions(fieldId) {
+  const input = $(fieldId);
+  const query = input.value.trim();
+
+  if (query.length < 2) {
+    closeAirportSuggest(fieldId);
+    return;
+  }
+
+  const results = await api(`/api/airports/search?q=${encodeURIComponent(query)}&limit=8`, {
+    auth: true,
+  });
+  renderAirportSuggestions(fieldId, Array.isArray(results) ? results : []);
+}
+
+function bindAirportAutocomplete(fieldId) {
+  const input = $(fieldId);
+  if (!input) return;
+
+  input.addEventListener("input", () => {
+    input.dataset.iata = "";
+
+    if (airportAutocompleteTimers[fieldId]) {
+      clearTimeout(airportAutocompleteTimers[fieldId]);
+    }
+
+    airportAutocompleteTimers[fieldId] = setTimeout(async () => {
+      try {
+        await loadAirportSuggestions(fieldId);
+      } catch {
+        closeAirportSuggest(fieldId);
+      }
+    }, 180);
+  });
+
+  input.addEventListener("focus", async () => {
+    if (input.value.trim().length < 2) return;
+    try {
+      await loadAirportSuggestions(fieldId);
+    } catch {
+      closeAirportSuggest(fieldId);
+    }
+  });
+
+  input.addEventListener("blur", () => {
+    setTimeout(() => closeAirportSuggest(fieldId), 160);
+  });
 }
 
 function updateSummary() {
@@ -202,9 +337,17 @@ function renderFlights() {
 }
 
 async function simulateFlights() {
+  const originCode = resolveAirportCode("origin");
+  const destinationCode = resolveAirportCode("destination");
+
+  if (!originCode || !destinationCode) {
+    alert("Selecione origem e destino pela busca assistida ou informe IATA valido (3 letras).");
+    return;
+  }
+
   const payload = {
-    origin: $("origin").value.trim().toUpperCase(),
-    destination: $("destination").value.trim().toUpperCase(),
+    origin: originCode,
+    destination: destinationCode,
     adults: Number($("adults").value || 1),
     cabin: $("cabin").value,
   };
@@ -270,7 +413,7 @@ function renderHotels() {
 }
 
 function simulateHotels() {
-  const destination = $("destination").value.trim().toUpperCase() || "BSB";
+  const destination = resolveAirportCode("destination") || "BSB";
   const adults = Number($("adults").value || 1);
   const nights = getTripNights();
 
@@ -343,7 +486,7 @@ function renderCars() {
 function simulateCars() {
   const adults = Number($("adults").value || 1);
   const nights = getTripNights();
-  const destination = $("destination").value.trim().toUpperCase() || "BSB";
+  const destination = resolveAirportCode("destination") || "BSB";
   const destinationFactor = destination.charCodeAt(1) % 4;
   const baseDaily = 95 + adults * 18 + destinationFactor * 12;
 
@@ -400,8 +543,14 @@ function fillFormFromPayload(p) {
   $("clientContact").value = p.client_contact || "";
   $("clientEmail").value = p.client_email || "";
   $("consultantName").value = p.consultant_name || state.user?.name || "";
-  $("origin").value = (p.origin || "GRU").toUpperCase();
-  $("destination").value = (p.destination || "BSB").toUpperCase();
+  const originCode = (p.origin || "GRU").toUpperCase();
+  const destinationCode = (p.destination || "BSB").toUpperCase();
+  $("origin").value = originCode;
+  $("origin").dataset.iata = originCode;
+  $("destination").value = destinationCode;
+  $("destination").dataset.iata = destinationCode;
+  setAirportMeta("origin", `Aeroporto selecionado: ${originCode}.`);
+  setAirportMeta("destination", `Aeroporto selecionado: ${destinationCode}.`);
   $("departureDate").value = p.departure_date || "";
   $("returnDate").value = p.return_date || "";
   $("adults").value = p.adults || 1;
@@ -624,6 +773,10 @@ function bindApp() {
 async function init() {
   bindAuth();
   bindApp();
+  bindAirportAutocomplete("origin");
+  bindAirportAutocomplete("destination");
+  $("origin").dataset.iata = "GRU";
+  $("destination").dataset.iata = "BSB";
   renderFlights();
   renderHotels();
   renderCars();

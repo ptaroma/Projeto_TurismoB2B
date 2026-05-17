@@ -97,8 +97,16 @@
         <article class="card">
           <h3>Viagem</h3>
           <div class="form-grid compact">
-            <label>Origem<input id="origin" type="text" value="GRU" maxlength="3" /></label>
-            <label>Destino<input id="destination" type="text" value="BSB" maxlength="3" /></label>
+            <label>Origem (cidade ou aeroporto)
+              <input id="origin" type="text" value="Sao Paulo (GRU)" autocomplete="off" />
+              <div id="originSuggest" class="autocomplete-box hidden"></div>
+              <small id="originMeta" class="input-meta">Principal sugerido para Sao Paulo: GRU.</small>
+            </label>
+            <label>Destino (cidade ou aeroporto)
+              <input id="destination" type="text" value="Brasilia (BSB)" autocomplete="off" />
+              <div id="destinationSuggest" class="autocomplete-box hidden"></div>
+              <small id="destinationMeta" class="input-meta">Digite cidade, estado ou IATA para consultar.</small>
+            </label>
             <label>Data ida<input id="departureDate" type="date" /></label>
             <label>Data volta<input id="returnDate" type="date" /></label>
             <label>Adultos<input id="adults" type="number" value="1" min="1" max="9" /></label>
