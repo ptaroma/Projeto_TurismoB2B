@@ -1,4 +1,5 @@
 import hashlib
+import importlib
 import json
 import os
 import secrets
@@ -18,7 +19,7 @@ from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 
 try:
-    import airportsdata
+    airportsdata = importlib.import_module("airportsdata")
 except Exception:  # pragma: no cover - fallback quando pacote nao estiver disponivel
     airportsdata = None
 
@@ -45,6 +46,8 @@ DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "1800"))
 
 AUTH_WINDOW_SECONDS = int(os.getenv("AUTH_WINDOW_SECONDS", "60"))
 AUTH_MAX_ATTEMPTS = int(os.getenv("AUTH_MAX_ATTEMPTS", "10"))
+INVITE_EXPIRY_HOURS = int(os.getenv("INVITE_EXPIRY_HOURS", "72"))
+ALLOW_PUBLIC_SIGNUP = os.getenv("ALLOW_PUBLIC_SIGNUP", "false").strip().lower() == "true"
 
 ADMIN_BOOTSTRAP_EMAIL = os.getenv("ADMIN_BOOTSTRAP_EMAIL", "").strip().lower()
 ADMIN_BOOTSTRAP_PASSWORD = os.getenv("ADMIN_BOOTSTRAP_PASSWORD", "").strip()
@@ -133,10 +136,25 @@ class AuditLog(Base):
     created_at = Column(String(40), nullable=False)
 
 
+class SignupInvite(Base):
+    __tablename__ = "signup_invites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), nullable=False, index=True)
+    token_hash = Column(String(128), nullable=False, unique=True, index=True)
+    role = Column(String(20), nullable=False, default="consultant")
+    full_name = Column(String(80), nullable=False, default="")
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    expires_at = Column(String(40), nullable=False)
+    created_at = Column(String(40), nullable=False)
+    used_at = Column(String(40), nullable=True)
+
+
 class RegisterRequest(BaseModel):
     name: str = Field(min_length=2, max_length=80)
     email: EmailStr
     password: str = Field(min_length=10, max_length=128)
+    invite_token: str = Field(min_length=20, max_length=255)
 
 
 class LoginRequest(BaseModel):
@@ -183,6 +201,13 @@ class SaveQuoteRequest(BaseModel):
 
 class UpdateQuoteStatusRequest(BaseModel):
     status: str = Field(min_length=3, max_length=20)
+
+
+class AdminCreateInviteRequest(BaseModel):
+    email: EmailStr
+    name: str = Field(default="", max_length=80)
+    role: str = Field(default="consultant", min_length=4, max_length=20)
+    expires_in_hours: int = Field(default=INVITE_EXPIRY_HOURS, ge=1, le=336)
 
 
 auth_attempts: dict[str, deque[datetime]] = defaultdict(deque)
@@ -593,6 +618,10 @@ def hash_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
 
+def create_invite_token() -> str:
+    return f"tb2b_inv_{secrets.token_urlsafe(24)}"
+
+
 def create_access_token(user: User) -> str:
     exp = utcnow() + timedelta(minutes=ACCESS_TOKEN_MINUTES)
     payload = {
@@ -825,9 +854,28 @@ def search_airports(
 
 @app.post("/api/auth/register")
 def register(body: RegisterRequest, request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
+    if not ALLOW_PUBLIC_SIGNUP:
+        raise HTTPException(status_code=403, detail="Cadastro publico desativado. Contate o administrador.")
+
     check_auth_rate_limit(request, "register")
 
-    existing = db.query(User).filter(User.email == body.email.lower()).first()
+    email = body.email.lower().strip()
+
+    invite_hash = hash_token(body.invite_token.strip())
+    invite = db.query(SignupInvite).filter(SignupInvite.token_hash == invite_hash).first()
+    if not invite:
+        raise HTTPException(status_code=403, detail="Cadastro restrito. Solicite convite ao administrador.")
+
+    if invite.used_at:
+        raise HTTPException(status_code=403, detail="Convite ja utilizado.")
+
+    if datetime.fromisoformat(invite.expires_at) < utcnow():
+        raise HTTPException(status_code=403, detail="Convite expirado. Solicite um novo convite.")
+
+    if invite.email.lower().strip() != email:
+        raise HTTPException(status_code=403, detail="Convite nao corresponde ao email informado.")
+
+    existing = db.query(User).filter(User.email == email).first()
     if existing:
         raise HTTPException(status_code=409, detail="Email ja cadastrado")
 
@@ -835,11 +883,11 @@ def register(body: RegisterRequest, request: Request, db: Session = Depends(get_
     salt, pwd_hash = create_password(body.password)
 
     user = User(
-        name=body.name.strip(),
-        email=body.email.lower(),
+        name=(invite.full_name.strip() or body.name.strip()),
+        email=email,
         salt=salt,
         password_hash=pwd_hash,
-        role="consultant",
+        role=invite.role,
         is_active=True,
         created_at=utcnow().isoformat(),
     )
@@ -847,10 +895,20 @@ def register(body: RegisterRequest, request: Request, db: Session = Depends(get_
     db.commit()
     db.refresh(user)
 
+    invite.used_at = utcnow().isoformat()
+    db.add(invite)
+
     access_token = create_access_token(user)
     refresh_token = create_refresh_token(db, user)
 
-    audit_event(db, user_id=user.id, event_type="auth.register", resource_type="user", resource_id=str(user.id))
+    audit_event(
+        db,
+        user_id=user.id,
+        event_type="auth.register",
+        resource_type="user",
+        resource_id=str(user.id),
+        metadata={"invite_id": invite.id, "invited_by": invite.created_by_user_id},
+    )
     db.commit()
 
     return {
@@ -1110,6 +1168,113 @@ def admin_audit(
         }
         for r in rows
     ]
+
+
+@app.post("/api/admin/invites")
+def admin_create_invite(
+    body: AdminCreateInviteRequest,
+    user: dict[str, Any] = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    allowed_roles = {"consultant", "admin"}
+    role = body.role.strip().lower()
+    if role not in allowed_roles:
+        raise HTTPException(status_code=400, detail="Role invalida")
+
+    if role == "admin" and user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Permissao insuficiente")
+
+    email = body.email.lower().strip()
+    existing_user = db.query(User).filter(User.email == email).first()
+    if existing_user:
+        raise HTTPException(status_code=409, detail="Este email ja possui usuario")
+
+    raw_token = create_invite_token()
+    invite = SignupInvite(
+        email=email,
+        token_hash=hash_token(raw_token),
+        role=role,
+        full_name=body.name.strip(),
+        created_by_user_id=user["id"],
+        expires_at=(utcnow() + timedelta(hours=body.expires_in_hours)).isoformat(),
+        created_at=utcnow().isoformat(),
+        used_at=None,
+    )
+    db.add(invite)
+    db.commit()
+    db.refresh(invite)
+
+    audit_event(
+        db,
+        user_id=user["id"],
+        event_type="auth.invite.create",
+        resource_type="invite",
+        resource_id=str(invite.id),
+        metadata={"invitee_email": email, "role": role, "expires_at": invite.expires_at},
+    )
+    db.commit()
+
+    return {
+        "id": invite.id,
+        "email": invite.email,
+        "role": invite.role,
+        "expires_at": invite.expires_at,
+        "used_at": invite.used_at,
+        "invite_token": raw_token,
+    }
+
+
+@app.get("/api/admin/invites")
+def admin_list_invites(
+    include_used: bool = False,
+    _: dict[str, Any] = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+) -> list[dict[str, Any]]:
+    query = db.query(SignupInvite)
+    if not include_used:
+        query = query.filter(SignupInvite.used_at.is_(None))
+
+    rows = query.order_by(SignupInvite.created_at.desc()).limit(200).all()
+    return [
+        {
+            "id": row.id,
+            "email": row.email,
+            "role": row.role,
+            "full_name": row.full_name,
+            "created_by_user_id": row.created_by_user_id,
+            "expires_at": row.expires_at,
+            "created_at": row.created_at,
+            "used_at": row.used_at,
+            "is_expired": datetime.fromisoformat(row.expires_at) < utcnow(),
+        }
+        for row in rows
+    ]
+
+
+@app.delete("/api/admin/invites/{invite_id}")
+def admin_revoke_invite(
+    invite_id: int,
+    user: dict[str, Any] = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+) -> dict[str, bool]:
+    invite = db.query(SignupInvite).filter(SignupInvite.id == invite_id).first()
+    if not invite:
+        raise HTTPException(status_code=404, detail="Convite nao encontrado")
+
+    if invite.used_at:
+        raise HTTPException(status_code=400, detail="Convite ja utilizado")
+
+    db.delete(invite)
+    audit_event(
+        db,
+        user_id=user["id"],
+        event_type="auth.invite.revoke",
+        resource_type="invite",
+        resource_id=str(invite_id),
+        metadata={"invitee_email": invite.email},
+    )
+    db.commit()
+    return {"ok": True}
 
 
 @app.post("/api/flight-options/simulate")

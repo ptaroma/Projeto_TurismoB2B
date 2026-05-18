@@ -95,12 +95,13 @@ function switchAuthTab(mode) {
   const loginForm = $("loginForm");
   const registerForm = $("registerForm");
 
-  if (mode === "login") {
-    loginTab.classList.add("active");
-    registerTab.classList.remove("active");
-    loginForm.classList.remove("hidden");
-    registerForm.classList.add("hidden");
-  } else {
+  if (loginTab) loginTab.classList.add("active");
+  if (loginForm) loginForm.classList.remove("hidden");
+
+  if (registerTab) registerTab.classList.remove("active");
+  if (registerForm) registerForm.classList.add("hidden");
+
+  if (mode === "register" && registerTab && registerForm && loginTab && loginForm) {
     registerTab.classList.add("active");
     loginTab.classList.remove("active");
     registerForm.classList.remove("hidden");
@@ -639,11 +640,11 @@ async function handleLogin(email, password) {
   localStorage.setItem("tb2b_refresh", state.refreshToken);
 }
 
-async function handleRegister(name, email, password) {
+async function handleRegister(name, email, password, inviteToken) {
   const data = await api("/api/auth/register", {
     method: "POST",
     auth: false,
-    body: { name, email, password },
+    body: { name, email, password, invite_token: inviteToken },
   });
   state.token = data.access_token || data.token;
   state.refreshToken = data.refresh_token || "";
@@ -699,7 +700,10 @@ async function logout() {
 
 function bindAuth() {
   $("tabLogin").addEventListener("click", () => switchAuthTab("login"));
-  $("tabRegister").addEventListener("click", () => switchAuthTab("register"));
+  const tabRegister = $("tabRegister");
+  if (tabRegister) {
+    tabRegister.addEventListener("click", () => switchAuthTab("register"));
+  }
 
   $("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -714,23 +718,32 @@ function bindAuth() {
     }
   });
 
-  $("registerForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    $("authMsg").textContent = "";
-    try {
-      await handleRegister(
-        $("registerName").value.trim(),
-        $("registerEmail").value.trim(),
-        $("registerPassword").value
-      );
-      showApp();
-      $("consultantName").value = state.user.name;
-      await loadQuotes();
-      updateSummary();
-    } catch (err) {
-      $("authMsg").textContent = err.message;
-    }
-  });
+  const registerForm = $("registerForm");
+  if (registerForm) {
+    registerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      $("authMsg").textContent = "";
+      const inviteToken = $("registerInviteToken").value.trim();
+      if (!inviteToken) {
+        $("authMsg").textContent = "Informe o codigo de convite da equipe.";
+        return;
+      }
+      try {
+        await handleRegister(
+          $("registerName").value.trim(),
+          $("registerEmail").value.trim(),
+          $("registerPassword").value,
+          inviteToken
+        );
+        showApp();
+        $("consultantName").value = state.user.name;
+        await loadQuotes();
+        updateSummary();
+      } catch (err) {
+        $("authMsg").textContent = err.message;
+      }
+    });
+  }
 }
 
 function bindApp() {
