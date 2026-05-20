@@ -80,6 +80,59 @@ body {
   font-size: 1.05rem;
 }
 
+.security-note {
+  margin-top: 22px;
+  max-width: 980px;
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 14px;
+  align-items: start;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(188, 228, 248, 0.35);
+  background: linear-gradient(135deg, rgba(10, 37, 52, 0.78), rgba(22, 78, 99, 0.72));
+}
+
+.security-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #95e0ba, #4ab67f);
+  box-shadow: 0 8px 20px rgba(4, 22, 18, 0.28);
+}
+
+.security-icon svg {
+  width: 30px;
+  height: 30px;
+  fill: #103724;
+}
+
+.security-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.security-title,
+.security-text {
+  margin: 0;
+  max-width: none;
+}
+
+.security-title {
+  font-family: "Manrope", sans-serif;
+  font-weight: 800;
+  color: #f4fff8;
+  font-size: 1rem;
+}
+
+.security-text {
+  color: #d7eef8;
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
 .sections {
   max-width: 1140px;
   margin: -24px auto 0;
@@ -219,6 +272,16 @@ select:focus {
   .hero {
     min-height: auto;
     padding-bottom: 28px;
+  }
+
+  .security-note {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .security-icon {
+    width: 48px;
+    height: 48px;
   }
 
   .sections {
