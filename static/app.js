@@ -55,6 +55,7 @@ function collectFormData(form) {
     travel_type: travelType,
     full_name: get("full_name"),
     contact: get("contact"),
+    email: get("email"),
     origin: get("origin"),
     destination: get("destination"),
     departure_date: get("departure_date"),
@@ -87,10 +88,7 @@ async function submitLeadForm(form) {
     });
 
     openDispatchTargets(result);
-    const emailStatus = result.email_sent
-      ? "Email enviado automaticamente para a equipe comercial."
-      : "Abrimos seu app de email para concluir o envio ao time comercial.";
-    msg.textContent = `${emailStatus} O WhatsApp da equipe tambem foi aberto com sua mensagem.`;
+    msg.textContent = "Seu pedido de Cotação foi enviado com sucesso. Obrigado por confiar em nosso trabalho.";
     form.reset();
   } catch (error) {
     msg.textContent = error.message;
