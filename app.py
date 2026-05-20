@@ -2,10 +2,13 @@ import hashlib
 import importlib
 import json
 import os
+import re
 import secrets
+import smtplib
 import unicodedata
 from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +55,14 @@ ALLOW_PUBLIC_SIGNUP = os.getenv("ALLOW_PUBLIC_SIGNUP", "false").strip().lower() 
 ADMIN_BOOTSTRAP_EMAIL = os.getenv("ADMIN_BOOTSTRAP_EMAIL", "").strip().lower()
 ADMIN_BOOTSTRAP_PASSWORD = os.getenv("ADMIN_BOOTSTRAP_PASSWORD", "").strip()
 ADMIN_BOOTSTRAP_NAME = os.getenv("ADMIN_BOOTSTRAP_NAME", "Administrador").strip()
+LEAD_EMAIL_TO = os.getenv("LEAD_EMAIL_TO", "comercialtitan.cover@gmail.com").strip()
+LEAD_WHATSAPP_NUMBER = os.getenv("LEAD_WHATSAPP_NUMBER", "+55 11 99469-1868").strip()
+SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "").strip()
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
+SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", SMTP_USER).strip()
+SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").strip().lower() == "true"
 
 
 def get_cors_origins() -> list[str]:
@@ -150,6 +161,23 @@ class SignupInvite(Base):
     used_at = Column(String(40), nullable=True)
 
 
+class PublicQuoteLead(Base):
+    __tablename__ = "public_quote_leads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    travel_type = Column(String(30), nullable=False)
+    full_name = Column(String(120), nullable=False)
+    contact = Column(String(255), nullable=False)
+    origin = Column(String(100), nullable=False)
+    destination = Column(String(100), nullable=False)
+    departure_date = Column(String(20), nullable=False)
+    return_date = Column(String(20), nullable=False)
+    adults = Column(Integer, nullable=False, default=1)
+    children = Column(Integer, nullable=False, default=0)
+    cabin = Column(String(30), nullable=False)
+    created_at = Column(String(40), nullable=False)
+
+
 class RegisterRequest(BaseModel):
     name: str = Field(min_length=2, max_length=80)
     email: EmailStr
@@ -208,6 +236,19 @@ class AdminCreateInviteRequest(BaseModel):
     name: str = Field(default="", max_length=80)
     role: str = Field(default="consultant", min_length=4, max_length=20)
     expires_in_hours: int = Field(default=INVITE_EXPIRY_HOURS, ge=1, le=336)
+
+
+class PublicLeadQuoteRequest(BaseModel):
+    travel_type: str = Field(min_length=3, max_length=30)
+    full_name: str = Field(min_length=3, max_length=120)
+    contact: str = Field(min_length=5, max_length=255)
+    origin: str = Field(min_length=3, max_length=100)
+    destination: str = Field(min_length=3, max_length=100)
+    departure_date: str = Field(min_length=8, max_length=20)
+    return_date: str = Field(min_length=8, max_length=20)
+    adults: int = Field(default=1, ge=1, le=9)
+    children: int = Field(default=0, ge=0, le=9)
+    cabin: str = Field(min_length=3, max_length=30)
 
 
 auth_attempts: dict[str, deque[datetime]] = defaultdict(deque)
@@ -715,6 +756,51 @@ def audit_event(
     db.add(entry)
 
 
+def parse_iso_date(value: str) -> datetime:
+    return datetime.strptime(value, "%Y-%m-%d")
+
+
+def normalize_phone(value: str) -> str:
+    digits = re.sub(r"\D+", "", value)
+    if not digits:
+        return ""
+    if value.strip().startswith("+"):
+        return f"+{digits}"
+    if digits.startswith("55"):
+        return f"+{digits}"
+    return f"+55{digits}"
+
+
+def build_whatsapp_url(message: str) -> str:
+    safe_number = re.sub(r"\D+", "", LEAD_WHATSAPP_NUMBER)
+    return f"https://wa.me/{safe_number}?text={requests_quote(message)}"
+
+
+def requests_quote(value: str) -> str:
+    from urllib.parse import quote
+
+    return quote(value, safe="")
+
+
+def send_public_lead_email(subject: str, body: str) -> bool:
+    if not (SMTP_HOST and SMTP_USER and SMTP_PASSWORD and SMTP_FROM_EMAIL and LEAD_EMAIL_TO):
+        return False
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = SMTP_FROM_EMAIL
+    msg["To"] = LEAD_EMAIL_TO
+    msg.set_content(body)
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as smtp:
+        if SMTP_USE_TLS:
+            smtp.starttls()
+        smtp.login(SMTP_USER, SMTP_PASSWORD)
+        smtp.send_message(msg)
+
+    return True
+
+
 def migrate_legacy_schema_for_sqlite() -> None:
     if not DATABASE_URL.startswith("sqlite"):
         return
@@ -797,6 +883,11 @@ def home() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/workspace")
+def workspace() -> FileResponse:
+    return FileResponse(STATIC_DIR / "workspace.html")
+
+
 @app.get("/health")
 def health(db: Session = Depends(get_db)) -> dict[str, str]:
     db.execute(text("SELECT 1"))
@@ -850,6 +941,126 @@ def search_airports(
         }
         for score, a in scored[safe_offset : safe_offset + safe_limit]
     ]
+
+
+@app.get("/api/public/airports")
+def public_airports(
+    q: str = Query(default="", max_length=80),
+    limit: int = Query(default=50),
+) -> list[dict[str, Any]]:
+    safe_limit = max(1, min(limit, 100))
+    query = q.strip()
+
+    if not query:
+        rows = AIRPORTS_BR[:safe_limit]
+        return [
+            {
+                "iata": a["iata"],
+                "city": a["city"],
+                "state": a["state"],
+                "name": a["name"],
+                "label": f"{a['city']} ({a['iata']})",
+            }
+            for a in rows
+        ]
+
+    scored: list[tuple[int, dict[str, Any]]] = []
+    for airport in AIRPORTS_BR:
+        score = airport_score(airport, query)
+        if score > 0:
+            scored.append((score, airport))
+
+    scored.sort(key=lambda item: (-item[0], item[1]["city"], item[1]["iata"]))
+    return [
+        {
+            "iata": a["iata"],
+            "city": a["city"],
+            "state": a["state"],
+            "name": a["name"],
+            "label": f"{a['city']} ({a['iata']})",
+        }
+        for _, a in scored[:safe_limit]
+    ]
+
+
+@app.post("/api/public/lead-quote")
+def create_public_lead_quote(body: PublicLeadQuoteRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
+    travel_type = normalize_text(body.travel_type)
+    allowed_types = {"turismo", "negocios", "pessoal"}
+    if travel_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Tipo de viagem invalido")
+
+    try:
+        departure_dt = parse_iso_date(body.departure_date)
+        return_dt = parse_iso_date(body.return_date)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Datas invalidas") from exc
+
+    if return_dt < departure_dt:
+        raise HTTPException(status_code=400, detail="Data de retorno nao pode ser menor que data de ida")
+
+    safe_cabin = normalize_text(body.cabin)
+    allowed_cabins = {"economica", "premium economy", "executiva", "primeira classe"}
+    if safe_cabin not in allowed_cabins:
+        raise HTTPException(status_code=400, detail="Classe invalida")
+
+    lead = PublicQuoteLead(
+        travel_type=travel_type,
+        full_name=body.full_name.strip(),
+        contact=body.contact.strip(),
+        origin=body.origin.strip(),
+        destination=body.destination.strip(),
+        departure_date=body.departure_date,
+        return_date=body.return_date,
+        adults=body.adults,
+        children=body.children,
+        cabin=safe_cabin,
+        created_at=utcnow().isoformat(),
+    )
+    db.add(lead)
+    db.commit()
+    db.refresh(lead)
+
+    formatted_type = travel_type.title()
+    message_lines = [
+        "Nova solicitacao de cotacao recebida no site",
+        f"Tipo de viagem: {formatted_type}",
+        f"Nome: {body.full_name.strip()}",
+        f"Contato: {body.contact.strip()}",
+        f"Origem: {body.origin.strip()}",
+        f"Destino: {body.destination.strip()}",
+        f"Ida: {body.departure_date}",
+        f"Retorno: {body.return_date}",
+        f"Adultos: {body.adults}",
+        f"Criancas: {body.children}",
+        f"Classe: {body.cabin.strip()}",
+        f"Lead ID: {lead.id}",
+    ]
+    message_text = "\n".join(message_lines)
+
+    email_sent = False
+    try:
+        email_sent = send_public_lead_email(
+            subject=f"TurismoB2B | Nova solicitacao {formatted_type}",
+            body=message_text,
+        )
+    except Exception:
+        email_sent = False
+
+    whatsapp_url = build_whatsapp_url(message_text)
+    mailto_url = (
+        f"mailto:{LEAD_EMAIL_TO}?subject={requests_quote(f'TurismoB2B | Nova solicitacao {formatted_type}')}&body={requests_quote(message_text)}"
+    )
+
+    return {
+        "ok": True,
+        "lead_id": lead.id,
+        "email_target": LEAD_EMAIL_TO,
+        "whatsapp_target": normalize_phone(LEAD_WHATSAPP_NUMBER),
+        "email_sent": email_sent,
+        "whatsapp_url": whatsapp_url,
+        "mailto_url": mailto_url,
+    }
 
 
 @app.post("/api/auth/register")
