@@ -523,10 +523,6 @@ def build_airports_catalog() -> list[dict[str, Any]]:
         try:
             all_airports = airportsdata.load("IATA")
             for code, row in all_airports.items():
-                country = str(row.get("country", "")).upper().strip()
-                if country != "BR":
-                    continue
-
                 iata = str(row.get("iata") or code or "").upper().strip()
                 if len(iata) != 3 or iata == "\\N":
                     continue
@@ -952,13 +948,21 @@ def search_airports(
 @app.get("/api/public/airports")
 def public_airports(
     q: str = Query(default="", max_length=80),
-    limit: int = Query(default=50),
+    limit: int = Query(default=300),
 ) -> list[dict[str, Any]]:
-    safe_limit = max(1, min(limit, 100))
+    safe_limit = max(1, min(limit, 5000))
     query = q.strip()
 
     if not query:
-        rows = AIRPORTS_BR[:safe_limit]
+        ranked = sorted(
+            AIRPORTS_BR,
+            key=lambda a: (
+                not bool(a.get("is_primary")),
+                normalize_text(a.get("city", "")),
+                a.get("iata", ""),
+            ),
+        )
+        rows = ranked[:safe_limit]
         return [
             {
                 "iata": a["iata"],

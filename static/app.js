@@ -14,25 +14,58 @@ async function api(path, options = {}) {
 function buildAirportOption(airport) {
   const option = document.createElement("option");
   option.value = `${airport.city} (${airport.iata})`;
-  option.textContent = `${airport.city} (${airport.iata})`;
+  option.label = `${airport.city} (${airport.iata}) - ${airport.name}`;
   return option;
 }
 
+function debounce(fn, waitMs) {
+  let timer = null;
+  return (...args) => {
+    if (timer) {
+      clearTimeout(timer);
+    }
+    timer = setTimeout(() => fn(...args), waitMs);
+  };
+}
+
+function fillDatalist(datalist, airports) {
+  datalist.innerHTML = "";
+  airports.forEach((airport) => {
+    datalist.appendChild(buildAirportOption(airport));
+  });
+}
+
 async function loadAirports() {
-  const airports = await api("/api/public/airports?limit=90");
-  const selects = Array.from(document.querySelectorAll(".airport-select"));
+  const airportInputs = Array.from(document.querySelectorAll(".airport-input"));
+  if (!airportInputs.length) {
+    return;
+  }
 
-  selects.forEach((select) => {
-    select.innerHTML = "";
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "Selecione";
-    placeholder.disabled = true;
-    placeholder.selected = true;
-    select.appendChild(placeholder);
+  const initialAirports = await api("/api/public/airports?limit=5000");
 
-    airports.forEach((airport) => {
-      select.appendChild(buildAirportOption(airport));
+  airportInputs.forEach((input, index) => {
+    const datalist = document.createElement("datalist");
+    datalist.id = `airports-list-${index + 1}`;
+    input.setAttribute("list", datalist.id);
+    input.insertAdjacentElement("afterend", datalist);
+
+    fillDatalist(datalist, initialAirports);
+
+    const refreshOptions = debounce(async () => {
+      const query = input.value.trim();
+      if (!query) {
+        fillDatalist(datalist, initialAirports);
+        return;
+      }
+      const encoded = encodeURIComponent(query);
+      const airports = await api(`/api/public/airports?q=${encoded}&limit=120`);
+      fillDatalist(datalist, airports);
+    }, 220);
+
+    input.addEventListener("input", () => {
+      refreshOptions().catch(() => {
+        fillDatalist(datalist, initialAirports);
+      });
     });
   });
 }

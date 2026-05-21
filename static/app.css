@@ -253,6 +253,25 @@ select:focus {
   border-color: var(--sea);
 }
 
+.airport-input-wrap {
+  position: relative;
+}
+
+.airport-search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.9rem;
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.airport-input {
+  width: 100%;
+  padding-left: 34px;
+}
+
 .promise {
   margin: 14px 0 10px;
   color: #1f5d77;
