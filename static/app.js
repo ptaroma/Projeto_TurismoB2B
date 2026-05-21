@@ -79,6 +79,14 @@ function toggleForm(button) {
   }
 }
 
+function closeForm(button) {
+  const form = button.closest(".quote-form");
+  if (!form) {
+    return;
+  }
+  form.classList.add("hidden");
+}
+
 function collectFormData(form) {
   const card = form.closest(".trip-card");
   const travelType = card.getAttribute("data-travel-type") || "turismo";
@@ -129,6 +137,10 @@ async function submitLeadForm(form) {
 function bindEvents() {
   document.querySelectorAll("[data-open-form]").forEach((button) => {
     button.addEventListener("click", () => toggleForm(button));
+  });
+
+  document.querySelectorAll("[data-close-form]").forEach((button) => {
+    button.addEventListener("click", () => closeForm(button));
   });
 
   document.querySelectorAll(".quote-form").forEach((form) => {

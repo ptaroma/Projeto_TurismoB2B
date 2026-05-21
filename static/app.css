@@ -201,7 +201,8 @@ body {
 }
 
 .btn-main,
-.btn-send {
+.btn-send,
+.btn-close {
   border: 0;
   cursor: pointer;
   border-radius: 11px;
@@ -282,6 +283,19 @@ select:focus {
 .btn-send {
   background: linear-gradient(135deg, #f0b86e, #d79643);
   color: #2e1d0a;
+}
+
+.btn-close {
+  background: #eef3f6;
+  color: #36505f;
+  border: 1px solid #cfd6dc;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .form-msg {
