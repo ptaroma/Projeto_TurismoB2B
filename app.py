@@ -1,6 +1,7 @@
 import hashlib
 import importlib
 import json
+import logging
 import os
 import re
 import secrets
@@ -63,6 +64,8 @@ SMTP_USER = os.getenv("SMTP_USER", "").strip()
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
 SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", SMTP_USER).strip()
 SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").strip().lower() == "true"
+
+logger = logging.getLogger("turismob2b.smtp")
 
 
 def get_cors_origins() -> list[str]:
@@ -794,8 +797,10 @@ def send_public_lead_email(subject: str, body: str) -> bool:
     msg.set_content(body)
 
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as smtp:
+        smtp.ehlo()
         if SMTP_USE_TLS:
             smtp.starttls()
+            smtp.ehlo()
         smtp.login(SMTP_USER, SMTP_PASSWORD)
         smtp.send_message(msg)
 
@@ -1047,6 +1052,7 @@ def create_public_lead_quote(body: PublicLeadQuoteRequest, db: Session = Depends
             body=message_text,
         )
     except Exception:
+        logger.exception("Falha no envio SMTP de lead publico")
         email_sent = False
 
     client_message = (
