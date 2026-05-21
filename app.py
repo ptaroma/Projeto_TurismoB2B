@@ -494,6 +494,53 @@ AIRPORTS_BR_SEED: list[dict[str, Any]] = [
     },
 ]
 
+CITY_DISPLAY_OVERRIDES = {
+    "GRU": "São Paulo",
+    "CGH": "São Paulo",
+    "SJK": "São José dos Campos",
+    "BSB": "Brasília",
+    "FLN": "Florianópolis",
+    "JPA": "João Pessoa",
+    "MCZ": "Maceió",
+    "BEL": "Belém",
+    "CGB": "Cuiabá",
+    "GYN": "Goiânia",
+    "VIX": "Vitória",
+    "IGU": "Foz do Iguaçu",
+    "SLZ": "São Luís",
+}
+
+AIRPORT_NAME_OVERRIDES = {
+    "GIG": "Aeroporto Internacional Galeão",
+    "BSB": "Aeroporto Internacional de Brasília",
+    "FLN": "Aeroporto Hercílio Luz",
+    "MCZ": "Aeroporto Internacional de Maceió",
+    "BEL": "Aeroporto Internacional de Belém",
+    "IGU": "Aeroporto Internacional de Foz do Iguaçu",
+    "THE": "Aeroporto Senador Petrônio Portella",
+}
+
+ACCENT_TOKEN_MAP = {
+    "belem": "Belém",
+    "brasilia": "Brasília",
+    "cuiaba": "Cuiabá",
+    "florianopolis": "Florianópolis",
+    "galeao": "Galeão",
+    "goiania": "Goiânia",
+    "goncalo": "Gonçalo",
+    "hercilio": "Hercílio",
+    "iguacu": "Iguaçu",
+    "joao": "João",
+    "jose": "José",
+    "luis": "Luís",
+    "maceio": "Maceió",
+    "magalhaes": "Magalhães",
+    "petronio": "Petrônio",
+    "sao": "São",
+    "varzea": "Várzea",
+    "vitoria": "Vitória",
+}
+
 
 def get_db():
     db = SessionLocal()
@@ -511,6 +558,32 @@ def normalize_text(value: str) -> str:
     return " ".join(text_value.lower().strip().split())
 
 
+def accentify_text(value: str) -> str:
+    if not value:
+        return ""
+
+    parts = re.split(r"(\W+)", value.strip())
+    accented_parts: list[str] = []
+    for part in parts:
+        normalized_part = normalize_text(part)
+        if not normalized_part or normalized_part not in ACCENT_TOKEN_MAP:
+            accented_parts.append(part)
+            continue
+
+        replacement = ACCENT_TOKEN_MAP[normalized_part]
+        if part.isupper():
+            replacement = replacement.upper()
+        accented_parts.append(replacement)
+
+    return "".join(accented_parts)
+
+
+def format_airport_display(iata: str, city: str, name: str) -> tuple[str, str]:
+    city_display = CITY_DISPLAY_OVERRIDES.get(iata, accentify_text(city))
+    name_display = AIRPORT_NAME_OVERRIDES.get(iata, accentify_text(name))
+    return city_display, name_display
+
+
 def build_airports_catalog() -> list[dict[str, Any]]:
     catalog: dict[str, dict[str, Any]] = {}
 
@@ -518,13 +591,25 @@ def build_airports_catalog() -> list[dict[str, Any]]:
         iata = str(airport.get("iata", "")).upper().strip()
         if len(iata) != 3:
             continue
+        city_display, name_display = format_airport_display(
+            iata,
+            str(airport.get("city", "")).strip() or iata,
+            str(airport.get("name", f"Aeroporto {iata}")).strip(),
+        )
         catalog[iata] = {
             "iata": iata,
-            "city": str(airport.get("city", "")).strip() or iata,
+            "city": city_display,
             "state": str(airport.get("state", "")).strip(),
-            "name": str(airport.get("name", f"Aeroporto {iata}")).strip(),
+            "name": name_display,
             "is_primary": bool(airport.get("is_primary", False) or iata in PRIMARY_AIRPORTS),
-            "keywords": [str(k).strip() for k in airport.get("keywords", []) if str(k).strip()],
+            "keywords": sorted(
+                {
+                    normalize_text(str(k).strip())
+                    for k in airport.get("keywords", [])
+                    if str(k).strip()
+                }
+                | {normalize_text(city_display), normalize_text(name_display)}
+            ),
         }
 
     if airportsdata is not None:
@@ -542,16 +627,17 @@ def build_airports_catalog() -> list[dict[str, Any]]:
                 city = str(row.get("city") or "").strip() or iata
                 state = str(row.get("subd") or "").strip()
                 name = str(row.get("name") or f"Aeroporto {iata}").strip()
+                city_display, name_display = format_airport_display(iata, city, name)
 
-                keywords = [city, name]
+                keywords = [city, name, city_display, name_display]
                 if state:
                     keywords.append(state)
 
                 entry = {
                     "iata": iata,
-                    "city": city,
+                    "city": city_display,
                     "state": state,
-                    "name": name,
+                    "name": name_display,
                     "is_primary": iata in PRIMARY_AIRPORTS,
                     "keywords": [normalize_text(k) for k in keywords if k],
                 }
