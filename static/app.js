@@ -66,19 +66,10 @@ function collectFormData(form) {
   };
 }
 
-function openDispatchTargets(result) {
-  if (result.whatsapp_url) {
-    window.open(result.whatsapp_url, "_blank", "noopener,noreferrer");
-  }
-  if (!result.email_sent && result.mailto_url) {
-    window.location.href = result.mailto_url;
-  }
-}
-
 async function submitLeadForm(form) {
   const msg = form.querySelector(".form-msg");
   msg.textContent = "Enviando sua solicitacao...";
-  msg.classList.remove("error");
+  msg.classList.remove("error", "success");
 
   try {
     const payload = collectFormData(form);
@@ -87,11 +78,15 @@ async function submitLeadForm(form) {
       body: payload,
     });
 
-    openDispatchTargets(result);
-    msg.textContent = "Seu pedido de Cotação foi enviado com sucesso. Obrigado por confiar em nosso trabalho.";
+    if (!result.email_sent) {
+      throw new Error("Nao foi possivel enviar sua solicitacao no momento. Tente novamente em instantes.");
+    }
+    msg.innerHTML = '<span class="msg-icon" aria-hidden="true">✔</span><span>Sua solicitação de Cotação foi enviada com sucesso. Obrigado por confiar em nosso trabalho</span>';
+    msg.classList.add("success");
     form.reset();
   } catch (error) {
     msg.textContent = error.message;
+    msg.classList.remove("success");
     msg.classList.add("error");
   }
 }

@@ -242,6 +242,7 @@ class PublicLeadQuoteRequest(BaseModel):
     travel_type: str = Field(min_length=3, max_length=30)
     full_name: str = Field(min_length=3, max_length=120)
     contact: str = Field(min_length=5, max_length=255)
+    email: EmailStr
     origin: str = Field(min_length=3, max_length=100)
     destination: str = Field(min_length=3, max_length=100)
     departure_date: str = Field(min_length=8, max_length=20)
@@ -1027,6 +1028,7 @@ def create_public_lead_quote(body: PublicLeadQuoteRequest, db: Session = Depends
         f"Tipo de viagem: {formatted_type}",
         f"Nome: {body.full_name.strip()}",
         f"Contato: {body.contact.strip()}",
+        f"Email: {body.email.strip()}",
         f"Origem: {body.origin.strip()}",
         f"Destino: {body.destination.strip()}",
         f"Ida: {body.departure_date}",
@@ -1047,19 +1049,14 @@ def create_public_lead_quote(body: PublicLeadQuoteRequest, db: Session = Depends
     except Exception:
         email_sent = False
 
-    whatsapp_url = build_whatsapp_url(message_text)
-    mailto_url = (
-        f"mailto:{LEAD_EMAIL_TO}?subject={requests_quote(f'TurismoB2B | Nova solicitacao {formatted_type}')}&body={requests_quote(message_text)}"
-    )
+    if not email_sent:
+        raise HTTPException(status_code=503, detail="Nao foi possivel enviar sua solicitacao no momento. Tente novamente em instantes.")
 
     return {
         "ok": True,
         "lead_id": lead.id,
         "email_target": LEAD_EMAIL_TO,
-        "whatsapp_target": normalize_phone(LEAD_WHATSAPP_NUMBER),
         "email_sent": email_sent,
-        "whatsapp_url": whatsapp_url,
-        "mailto_url": mailto_url,
     }
 
 
