@@ -280,6 +280,14 @@ select:focus {
   font-weight: 700;
 }
 
+.form-msg.warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #9a5b00;
+  font-weight: 700;
+}
+
 .form-msg .msg-icon {
   width: 22px;
   height: 22px;
@@ -291,6 +299,11 @@ select:focus {
   font-size: 0.8rem;
   line-height: 1;
   box-shadow: 0 6px 14px rgba(10, 73, 45, 0.26);
+}
+
+.form-msg.warning .msg-icon {
+  background: #d9901a;
+  box-shadow: 0 6px 14px rgba(106, 63, 5, 0.26);
 }
 
 .form-msg.error {

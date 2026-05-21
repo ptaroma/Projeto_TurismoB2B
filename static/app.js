@@ -69,21 +69,26 @@ function collectFormData(form) {
 async function submitLeadForm(form) {
   const msg = form.querySelector(".form-msg");
   msg.textContent = "Enviando sua solicitacao...";
-  msg.classList.remove("error", "success");
+  msg.classList.remove("error", "success", "warning");
 
   try {
     const payload = collectFormData(form);
-    await api("/api/public/lead-quote", {
+    const result = await api("/api/public/lead-quote", {
       method: "POST",
       body: payload,
     });
 
-    msg.innerHTML = '<span class="msg-icon" aria-hidden="true">✔</span><span>Sua solicitação de Cotação foi enviada com sucesso. Obrigado por confiar em nosso trabalho</span>';
-    msg.classList.add("success");
+    if (result.email_sent) {
+      msg.innerHTML = `<span class="msg-icon" aria-hidden="true">✔</span><span>${result.client_message}</span>`;
+      msg.classList.add("success");
+    } else {
+      msg.innerHTML = `<span class="msg-icon" aria-hidden="true">!</span><span>${result.client_message}</span>`;
+      msg.classList.add("warning");
+    }
     form.reset();
   } catch (error) {
     msg.textContent = error.message;
-    msg.classList.remove("success");
+    msg.classList.remove("success", "warning");
     msg.classList.add("error");
   }
 }

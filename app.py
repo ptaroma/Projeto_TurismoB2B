@@ -1049,11 +1049,18 @@ def create_public_lead_quote(body: PublicLeadQuoteRequest, db: Session = Depends
     except Exception:
         email_sent = False
 
+    client_message = (
+        "Sua solicitacao de Cotacao foi enviada com sucesso. Obrigado por confiar em nosso trabalho"
+        if email_sent
+        else "Sua solicitacao foi registrada, mas tivemos uma falha temporaria no envio de e-mail ao comercial."
+    )
+
     return {
         "ok": True,
         "lead_id": lead.id,
         "email_target": LEAD_EMAIL_TO,
         "email_sent": email_sent,
+        "client_message": client_message,
     }
 
 
