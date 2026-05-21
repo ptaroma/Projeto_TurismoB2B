@@ -301,6 +301,14 @@ AIRPORTS_BR_SEED: list[dict[str, Any]] = [
         "keywords": ["viracopos", "campinas", "sao paulo"],
     },
     {
+        "iata": "SJK",
+        "city": "Sao Jose dos Campos",
+        "state": "SP",
+        "name": "Aeroporto Professor Urbano Ernesto Stumpf",
+        "is_primary": False,
+        "keywords": ["sao jose dos campos", "urbano stumpf", "sjk"],
+    },
+    {
         "iata": "SDU",
         "city": "Rio de Janeiro",
         "state": "RJ",
@@ -523,6 +531,10 @@ def build_airports_catalog() -> list[dict[str, Any]]:
         try:
             all_airports = airportsdata.load("IATA")
             for code, row in all_airports.items():
+                country = str(row.get("country", "")).upper().strip()
+                if country != "BR":
+                    continue
+
                 iata = str(row.get("iata") or code or "").upper().strip()
                 if len(iata) != 3 or iata == "\\N":
                     continue
