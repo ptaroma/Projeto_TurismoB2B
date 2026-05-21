@@ -1049,9 +1049,6 @@ def create_public_lead_quote(body: PublicLeadQuoteRequest, db: Session = Depends
     except Exception:
         email_sent = False
 
-    if not email_sent:
-        raise HTTPException(status_code=503, detail="Nao foi possivel enviar sua solicitacao no momento. Tente novamente em instantes.")
-
     return {
         "ok": True,
         "lead_id": lead.id,

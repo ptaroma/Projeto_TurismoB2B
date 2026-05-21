@@ -73,14 +73,11 @@ async function submitLeadForm(form) {
 
   try {
     const payload = collectFormData(form);
-    const result = await api("/api/public/lead-quote", {
+    await api("/api/public/lead-quote", {
       method: "POST",
       body: payload,
     });
 
-    if (!result.email_sent) {
-      throw new Error("Nao foi possivel enviar sua solicitacao no momento. Tente novamente em instantes.");
-    }
     msg.innerHTML = '<span class="msg-icon" aria-hidden="true">✔</span><span>Sua solicitação de Cotação foi enviada com sucesso. Obrigado por confiar em nosso trabalho</span>';
     msg.classList.add("success");
     form.reset();
