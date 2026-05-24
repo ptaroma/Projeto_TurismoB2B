@@ -29,6 +29,7 @@ except Exception:  # pragma: no cover - fallback quando pacote nao estiver dispo
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
+IMAGE_DIR = BASE_DIR / "imagem"
 
 DEFAULT_SQLITE_URL = f"sqlite:///{BASE_DIR / 'turismob2b.db'}"
 DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_SQLITE_URL)
@@ -1129,6 +1130,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/imagem", StaticFiles(directory=IMAGE_DIR), name="imagem")
 
 
 @app.middleware("http")
