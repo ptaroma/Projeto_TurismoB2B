@@ -50,6 +50,10 @@ body {
   backdrop-filter: blur(12px);
 }
 
+.partner-panel-header {
+  grid-template-columns: minmax(170px, 220px) minmax(0, 1fr) minmax(170px, 220px);
+}
+
 .brand-icon,
 .brand-balance {
   width: 74px;
@@ -104,10 +108,8 @@ body {
 .hero-content {
   max-width: 1140px;
   margin: 18px auto 0;
-}
-
-.hero-layout {
-  display: block;
+  display: grid;
+  gap: 18px;
 }
 
 .partner-panel {
@@ -124,6 +126,11 @@ body {
     linear-gradient(135deg, rgba(8, 31, 43, 0.9), rgba(18, 74, 97, 0.82));
   border: 1px solid rgba(201, 231, 244, 0.2);
   box-shadow: 0 24px 54px rgba(4, 20, 30, 0.3);
+}
+
+.brand-header {
+  max-width: 1040px;
+  margin: 0 auto;
 }
 
 .partner-logo {
@@ -179,7 +186,7 @@ body {
 }
 
 .security-note {
-  margin-top: 22px;
+  margin: 0 auto;
   max-width: 980px;
   display: grid;
   grid-template-columns: 56px 1fr;
@@ -492,14 +499,14 @@ select:focus {
     font-size: 1rem;
   }
 
-  .hero-layout {
-    display: block;
-  }
-
   .partner-panel {
     grid-template-columns: 1fr;
     gap: 16px;
     padding: 24px 18px;
+  }
+
+  .partner-panel-header {
+    grid-template-columns: 1fr;
   }
 
   .partner-logo {
