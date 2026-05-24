@@ -157,8 +157,9 @@ body {
 .partner-kicker {
   font-family: "Manrope", sans-serif;
   font-size: clamp(1.15rem, 2vw, 1.75rem);
+  line-height: 1.15;
   font-weight: 800;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   color: #9bdcf7;
 }
@@ -518,8 +519,8 @@ select:focus {
   }
 
   .partner-kicker {
-    font-size: clamp(1rem, 4vw, 1.35rem);
-    letter-spacing: 0.1em;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
   }
 
   .partner-title {
