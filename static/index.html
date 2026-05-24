@@ -11,13 +11,41 @@
 </head>
 <body>
   <header class="hero">
-    <nav class="nav"></nav>
+    <nav class="nav" aria-label="Cabeçalho principal">
+      <div class="brand-header" role="banner" aria-label="TurisLink - Plataforma Multiconectada de Viagens">
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 64 64" focusable="false">
+            <defs>
+              <linearGradient id="brandIconGlow" x1="0%" x2="100%" y1="0%" y2="100%">
+                <stop offset="0%" stop-color="#ffd79b" />
+                <stop offset="100%" stop-color="#f0b86e" />
+              </linearGradient>
+            </defs>
+            <path d="M9 39c0-2.8 2.2-5 5-5h10l8.7-14.8c1.1-1.8 3.4-2.5 5.3-1.7 1.8.9 2.7 3 2.1 5l-3.4 11.5H50c2.8 0 5 2.2 5 5s-2.2 5-5 5H35.2l-3.6 12.2c-.6 1.9-2.5 3-4.4 2.6-1.9-.4-3.3-2.1-3.3-4.1V44H14c-2.8 0-5-2.2-5-5Z" fill="url(#brandIconGlow)" />
+            <path d="M13 18.5c7.6 1.2 13.7 3.8 19.2 8.2" fill="none" stroke="#bfe8ff" stroke-linecap="round" stroke-width="3" opacity="0.9" />
+            <path d="M18 11.5c10.8 1.6 19.8 5.8 27.8 13" fill="none" stroke="#7fd0ff" stroke-linecap="round" stroke-width="3" opacity="0.75" />
+          </svg>
+        </div>
+        <div class="brand-title-wrap">
+          <p class="brand-kicker">Conexão inteligente para cada embarque</p>
+          <h1 class="brand-title">TurisLink - Plataforma Multiconectada de Viagens.</h1>
+        </div>
+        <div class="brand-balance" aria-hidden="true"></div>
+      </div>
+    </nav>
     <div class="hero-content">
-      <div class="hero-lines" aria-label="Mensagem principal">
-        <p class="hero-line hero-line-main">Este é o ambiente que faltava para sua viagem ser mais econômica.</p>
-        <p class="hero-line hero-line-title">Os ingredientes de um Turismo inteligente são: QUALIDADE e ECONOMIA</p>
-        <p class="hero-line hero-line-eyebrow">Planejamento com inteligência comercial</p>
-        <p class="hero-line hero-line-body">Escolha o tipo de viagem, preencha em poucos passos e receba sua cotação com atendimento humano especializado.</p>
+      <div class="hero-layout">
+        <div class="hero-left">
+          <div class="hero-lines" aria-label="Mensagem principal">
+            <p class="hero-line hero-line-main">Este é o ambiente que faltava para sua viagem ser mais econômica.</p>
+            <p class="hero-line hero-line-title">Os ingredientes de um Turismo inteligente são: QUALIDADE e ECONOMIA</p>
+            <p class="hero-line hero-line-eyebrow">Planejamento com inteligência comercial</p>
+            <p class="hero-line hero-line-body">Escolha o tipo de viagem, preencha em poucos passos e receba sua cotação com atendimento humano especializado.</p>
+          </div>
+        </div>
+        <aside class="hero-brand" aria-label="Marca TurismoB2B">
+          <img src="/imagem/logo_b2b.png" alt="Logotipo TurismoB2B" class="hero-logo" />
+        </aside>
       </div>
       <div class="security-note" role="note" aria-label="Credenciais oficiais de segurança">
         <div class="security-icon" aria-hidden="true">
@@ -211,6 +239,10 @@
       </div>
     </section>
   </main>
+
+  <footer class="site-footer">
+    <p>© 2026 TurismoB2B. Todos os direitos reservados. Razão Social: PAULO DE TARSO ROMA DE OLIVEIRA | CNPJ: 58.656.683/0001-10.</p>
+  </footer>
 
   <script src="/static/app.js"></script>
 </body>
